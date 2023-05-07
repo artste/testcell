@@ -1,0 +1,9 @@
+project:
+  output-dir: _docs
+
+website:
+  title: "testcell"
+  site-url: "https://artste.github.io/testcell"
+  description: "testcell prevents your testing cells from affecting the global namespace"
+  repo-branch: main
+  repo-url: "https://github.com/artste/testcell"
