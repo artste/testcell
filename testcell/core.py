@@ -10,8 +10,10 @@ import ast
 # %% ../nbs/01_ast.ipynb 5
 def last_node(code):
     tree = ast.parse(code)
+    if len(tree.body)==0: return None
+    src = tree.body[-1]
     last_node = None
-    for node in ast.walk(tree):
+    for node in ast.walk(src):
         if isinstance(node, ast.stmt):
             last_node = node
     return last_node
@@ -20,11 +22,11 @@ def last_node(code):
 def node_source(node,code):
     return ast.get_source_segment(code,node)
 
-# %% ../nbs/01_ast.ipynb 9
+# %% ../nbs/01_ast.ipynb 10
 def is_assignment(node):
     return isinstance(node, ast.Assign)
 
-# %% ../nbs/01_ast.ipynb 11
+# %% ../nbs/01_ast.ipynb 12
 def extract_call(node):
     if not isinstance(node, ast.Expr): return None
     node = node.value # step in
@@ -35,24 +37,24 @@ def extract_call(node):
         if isinstance(n, ast.Attribute): return n.attr
     return None # all the rest is not supported
 
-# %% ../nbs/01_ast.ipynb 13
+# %% ../nbs/01_ast.ipynb 14
 def is_function_call(node,names):
     function_name = extract_call(node)
     if function_name is None: return False # this is not a function call
     return function_name in names
 
-# %% ../nbs/01_ast.ipynb 15
+# %% ../nbs/01_ast.ipynb 16
 def is_import_statement(node):
     return isinstance(node, (ast.Import, ast.ImportFrom))
 
-# %% ../nbs/01_ast.ipynb 17
+# %% ../nbs/01_ast.ipynb 18
 def need_display(node):
     if node is None: return False
     if is_function_call(node,names=['print','display']): return False
     if is_import_statement(node): return False
     return True
 
-# %% ../nbs/01_ast.ipynb 19
+# %% ../nbs/01_ast.ipynb 20
 def wrap_node(node,function_name):
     return ast.Expr(
         value=ast.Call(
@@ -61,13 +63,13 @@ def wrap_node(node,function_name):
             keywords=[])
         )
 
-# %% ../nbs/01_ast.ipynb 22
+# %% ../nbs/01_ast.ipynb 23
 def last_statement_has_semicolon(code):
     t = [x.strip() for x in code.splitlines()]
     t = [x for x in t if not x.startswith('#')]
     return t[-1].endswith(';')
 
-# %% ../nbs/01_ast.ipynb 24
+# %% ../nbs/01_ast.ipynb 25
 def code_till_node(code:str,node):
     t = code.splitlines()
     t = t[:node.lineno]
@@ -75,7 +77,7 @@ def code_till_node(code:str,node):
     if len(t[-1])==0: t = t[:-1]
     return '\n'.join(t)
 
-# %% ../nbs/01_ast.ipynb 27
+# %% ../nbs/01_ast.ipynb 28
 def auto_display(code):
     if last_statement_has_semicolon(code): return code
     
