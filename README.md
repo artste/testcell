@@ -56,7 +56,9 @@ a
     def _test_cell_():
         #| echo: false
         a = "'a' is not polluting global scope"
-        display(a)
+        display( # %%testcell
+        a
+        ) # %%testcell
     try:
         _test_cell_()
     finally:
@@ -79,7 +81,9 @@ a
     def _test_cell_():
         #| echo: false
         a = "'a' is not polluting global scope"
-        display(a)
+        display( # %%testcell
+        a
+        ) # %%testcell
     try:
         _test_cell_()
     finally:
@@ -133,10 +137,84 @@ print(a)
     ### END
     'a' is not polluting global scope
 
+### Run in isolation
+
+`%%testcelln` is a shourtcut for `%%testcell noglobals` and executes the
+cell in complete isolation from global scope. This is very useful when
+you want to be sure that global variables or namespace should be part of
+the cell.
+
+## Run in isolation
+
+`%%testcelln` is a shortcut for `%%testcell noglobals` and executes the
+cell in complete isolation from the global scope.
+
+This is very useful when you want to ensure that global variables or
+namespaces are not accessible within the cell.
+
+``` python
+aaa = 'global variable'
+```
+
+``` python
+%%testcell
+'aaa' in globals()
+```
+
+    True
+
+``` python
+%%testcell noglobals
+'aaa' in globals()
+```
+
+    False
+
+``` python
+%%testcelln
+'aaa' in globals()
+```
+
+    False
+
+``` python
+%%testcelln
+globals().keys()
+```
+
+    dict_keys(['__builtins__', '_test_cell_'])
+
+Inside the cell, from the *global scope*, only these two items are
+available: + `__builtins__` : built in python’s functions. +
+`_test_cell_` : `%%testcell` wrapped function executed (we can’t avoid
+this).
+
 **IMPORTANT**: this is *just wrapping your cell* and so it’s still
 running on your main kernel. If you modify variables that has been
 created outside of this cell (aka: if you have side effects) this will
 not protect you.
+
+``` python
+aaa
+```
+
+    'global variable'
+
+``` python
+%%testcell 
+# WARNING: this will alter the state of global variable:
+globals().update({'aaa' : 'modified global variable'});
+```
+
+``` python
+aaa
+```
+
+    'modified global variable'
+
+``` python
+del aaa
+```
 
 ## TODO:
 
