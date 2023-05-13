@@ -189,6 +189,37 @@ available: + `__builtins__` : built in python’s functions. +
 `_test_cell_` : `%%testcell` wrapped function executed (we can’t avoid
 this).
 
+``` python
+%%testcell
+def my_function(x):
+    print(aaa) # global variable
+    return x
+
+try:
+    my_function(123)
+except Exception as e:
+    print(e)
+```
+
+    global variable
+
+``` python
+%%testcelln
+def my_function(x):
+    print(aaa) # global variable
+    return x
+
+try:
+    my_function(123)
+except Exception as e:
+    print(e)
+```
+
+    name 'aaa' is not defined
+
+As you can see from this last example, `%%testcelln` helps you to
+identify that `my_function` refers global variable `aaa`.
+
 **IMPORTANT**: this is *just wrapping your cell* and so it’s still
 running on your main kernel. If you modify variables that has been
 created outside of this cell (aka: if you have side effects) this will
