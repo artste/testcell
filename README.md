@@ -247,8 +247,12 @@ aaa
 del aaa
 ```
 
-## TODO:
+## Links:
+
+- PROJECT PAGE: https://github.com/artste/testcell
+- DOCUMENTATION: https://artste.github.io/testcell
+- PYPI: https://pypi.org/project/testcell
+
+## Todo:
 
 - Install as a plugin to enable it by default like other cell’s magic.
-- Eval possibility to run code on a new kernel to reduce even more
-  possible side effects.
