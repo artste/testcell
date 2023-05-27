@@ -18,6 +18,12 @@ statement is optionally returned like it happens in a normal cell.
 **WARNING:** this don’t protect you from *the side effects of your code*
 like deleting a file or mutating the state of a global variable.
 
+<div>
+
+[![](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/artste/testcell/blob/main/demo/testcell_demo.ipynb)
+
+</div>
+
 ## Install
 
 ``` sh
@@ -266,9 +272,11 @@ del aaa
 
 ## Links:
 
-- PROJECT PAGE: https://github.com/artste/testcell
-- DOCUMENTATION: https://artste.github.io/testcell
-- PYPI: https://pypi.org/project/testcell
+- PROJECT PAGE: <https://github.com/artste/testcell>
+- DOCUMENTATION: <https://artste.github.io/testcell>
+- PYPI: <https://pypi.org/project/testcell>
+- COLAB DEMO:
+  [testcell_demo.ipynb](https://colab.research.google.com/github/artste/testcell/blob/main/demo/testcell_demo.ipynb)
 
 ## Todo:
 
