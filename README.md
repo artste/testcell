@@ -6,14 +6,14 @@
 global namespace.
 
 The Python cell magic `%%testcell` executes a cell without *polluting*
-the notebook’s global variables. This is useful whenever you want to
+the notebook’s global namespace. This is useful whenever you want to
 test your code without having any of the local variables escape that
 cell.
 
 What’s happening under the hood is that your cell code, before being
 executed, is wrapped in a temporary function that will be deleted after
-execution. To give you the feeling of “seamless integration” the last
-line is optionally wrapped with a `display` statement if needed.
+execution. To give you the feeling of *seamless integration* the last
+statement is optionally returned like it happens in a normal cell.
 
 **WARNING:** this don’t protect you from *the side effects of your code*
 like deleting a file or mutating the state of a global variable.
@@ -45,6 +45,9 @@ What is happening under the hood is that `%%testcell` wraps your cell’s
 code with a function, execute it and then deletes it. Adding the
 `verbose` keywork will print which code will be executed.
 
+NOTE: The actual cell code is enclosed within `BEGIN` and `END` comment
+blocks for improved readability.
+
 ``` python
 %%testcell verbose
 a = "'a' is not polluting global scope"
@@ -56,13 +59,12 @@ a
     def _test_cell_():
         #| echo: false
         a = "'a' is not polluting global scope"
-        display( # %%testcell
-        a
-        ) # %%testcell
+        return a # %%testcell
     try:
-        _test_cell_()
+        _ = _test_cell_()
     finally:
         del _test_cell_
+    _ # This will be added to global scope
     ### END
 
     "'a' is not polluting global scope"
@@ -81,19 +83,16 @@ a
     def _test_cell_():
         #| echo: false
         a = "'a' is not polluting global scope"
-        display( # %%testcell
-        a
-        ) # %%testcell
+        return a # %%testcell
     try:
-        _test_cell_()
+        _ = _test_cell_()
     finally:
         del _test_cell_
+    if _ is not None: display(_)
     ### END
 
-On top of *wrapping* your cell’s code, it will optinally add a
-`display(...)` call on your last cell’s row, trying to emulate what a
-real cell usually does. If you explicitly add a semicolon `;` in the
-end, this output will be suppressed.
+If you add a semicolon `;` at the end of your last statement no `return`
+statement is added and nothing is displayed like a normal jupyter cell.
 
 ``` python
 %%testcell verbose
@@ -108,15 +107,14 @@ a;
         a = "'a' is not polluting global scope"
         a;
     try:
-        _test_cell_()
+        _ = _test_cell_()
     finally:
         del _test_cell_
+    _ # This will be added to global scope
     ### END
 
-There are more cases where `display(...)` is avoided: \* `display`: if
-this is already present on the last line. \* `print`: even in this case
-no print is preserved and no other display call is added. \*
-`# comment...#`: these are preserved
+`testcell` works seamlessly with existing `print` or `display`statements
+on last line:
 
 ``` python
 %%testcell verbose
@@ -129,28 +127,48 @@ print(a)
     def _test_cell_():
         #| echo: false
         a = "'a' is not polluting global scope"
-        print(a)
+        return print(a) # %%testcell
     try:
-        _test_cell_()
+        _ = _test_cell_()
     finally:
         del _test_cell_
+    _ # This will be added to global scope
     ### END
     'a' is not polluting global scope
 
+Moreover, thanks to `ast`, it properly deals with complex situations
+like comments on the last line and multi lines statements
+
+``` python
+%%testcell verbose
+a = "'a' is not polluting global scope"
+(a,
+ True)
+# this is a comment on last line
+```
+
+
+    ### BEGIN
+    def _test_cell_():
+        #| echo: false
+        a = "'a' is not polluting global scope"
+        return (a,
+         True) # %%testcell
+    try:
+        _ = _test_cell_()
+    finally:
+        del _test_cell_
+    _ # This will be added to global scope
+    ### END
+
+    ("'a' is not polluting global scope", True)
+
 ### Run in isolation
 
-`%%testcelln` is a shourtcut for `%%testcell noglobals` and executes the
-cell in complete isolation from global scope. This is very useful when
-you want to be sure that global variables or namespace should be part of
-the cell.
-
-## Run in isolation
-
 `%%testcelln` is a shortcut for `%%testcell noglobals` and executes the
-cell in complete isolation from the global scope.
-
-This is very useful when you want to ensure that global variables or
-namespaces are not accessible within the cell.
+cell in complete isolation from the global scope. This is very useful
+when you want to ensure that global variables or namespaces are not
+accessible within the cell.
 
 ``` python
 aaa = 'global variable'
@@ -182,12 +200,11 @@ aaa = 'global variable'
 globals().keys()
 ```
 
-    dict_keys(['__builtins__', '_test_cell_'])
+    dict_keys(['__builtins__'])
 
-Inside the cell, from the *global scope*, only these two items are
-available: + `__builtins__` : built in python’s functions. +
-`_test_cell_` : `%%testcell` wrapped function executed (we can’t avoid
-this).
+With `%%testcelln` inside the cell, you’ll be able to access only to
+`__builtins__` (aka: standard python’s functions). **It behaves like a
+notebook-in-notebook**.
 
 ``` python
 %%testcell
