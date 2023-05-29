@@ -24,6 +24,12 @@ like deleting a file or mutating the state of a global variable.
 
 </div>
 
+<div>
+
+[![](https://kaggle.com/static/images/open-in-kaggle.svg)](https://www.kaggle.com/artste/introducing-testcell)
+
+</div>
+
 ## Install
 
 ``` sh
@@ -277,6 +283,8 @@ del aaa
 - PYPI: <https://pypi.org/project/testcell>
 - COLAB DEMO:
   [testcell_demo.ipynb](https://colab.research.google.com/github/artste/testcell/blob/main/demo/testcell_demo.ipynb)
+- KAGGLE SAMPLE NOTEBOOK:
+  <https://www.kaggle.com/artste/introducing-testcell>
 
 ## Todo:
 
