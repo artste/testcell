@@ -8,6 +8,7 @@ __all__ = ['testcell', 'testcelln']
 import ast
 from IPython.core.magic import register_cell_magic, needs_local_scope
 from IPython import get_ipython # needed for quarto
+from IPython.display import Code
 
 # %% ../nbs/02_testcell.ipynb 5
 from .core import auto_return
@@ -41,7 +42,7 @@ def testcell(line, cell, local_ns):
         arr += ['_ # This will be added to global scope'] # having this as last line makes the same behavior as normal cell
     wrapped_cell = '\n'.join(arr)
 
-    if verbose: print('\n### BEGIN\n'+wrapped_cell+'\n### END')
+    if verbose: display(Code('\n### BEGIN\n'+wrapped_cell+'\n### END',language='python'))
 
     _globals = {} if noglobals else local_ns
     _locals = {'_':None} if noreturn else None # we mask '_' with a local variable to prevent it affecting global scope
