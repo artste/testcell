@@ -16,8 +16,8 @@ executed, is wrapped in a temporary function that will be deleted after
 execution. To give you the feeling of *seamless integration* the last
 statement is optionally returned like it happens in a normal cell.
 
-**WARNING:** this don’t protect you from *the side effects of your code*
-like deleting a file or mutating the state of a global variable.
+**WARNING:** this doesn’t protect you from *the side effects of your
+code* like deleting a file or mutating the state of a global variable.
 
 [![](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/artste/testcell/blob/main/demo/testcell_demo.ipynb)
 
@@ -48,7 +48,7 @@ assert 'a' not in locals()
 
 What is happening under the hood is that `%%testcell` wraps your cell’s
 code with a function, execute it and then deletes it. Adding the
-`verbose` keywork will print which code will be executed.
+`verbose` keyword will print which code will be executed.
 
 NOTE: The actual cell code is enclosed within `BEGIN` and `END` comment
 blocks for improved readability.
@@ -172,7 +172,7 @@ body .il { color: #666666 } /* Literal.Number.Integer.Long */
     "'a' is not polluting global scope"
 
 If you’re just interested in seeing what will be executed, but actually
-not executing it, you ca use `dryrun` option:
+not executing it, you can use `dryrun` option:
 
 ``` python
 %%testcell dryrun
@@ -409,8 +409,8 @@ body .il { color: #666666 } /* Literal.Number.Integer.Long */
 </body>
 </html>
 
-`testcell` works seamlessly with existing `print` or `display`statements
-on last line:
+`testcell` works seamlessly with existing `print` or `display`
+statements on last line:
 
 ``` python
 %%testcell verbose
@@ -657,8 +657,8 @@ body .il { color: #666666 } /* Literal.Number.Integer.Long */
 ### Skip execution
 
 It is possible to skip a cell execution using `skip` command. This is
-usueful when you want to keep around the code but don’t actually run it.
-It’s also possible to skip **all cells markked with `%%testcell`** using
+useful when you want to keep around the code but don’t actually run it.
+It’s also possible to skip **all cells marked with `%%testcell`** using
 the following syntax: `testcell.global_skip=True`.
 
 ``` python
@@ -710,7 +710,7 @@ globals().keys()
 
     dict_keys(['__builtins__'])
 
-With `%%testcelln` inside the cell, you’ll be able to access only to
+With `%%testcelln` inside the cell, you’ll be able to access only
 `__builtins__` (aka: standard python’s functions). **It behaves like a
 notebook-in-notebook**.
 
@@ -746,7 +746,7 @@ As you can see from this last example, `%%testcelln` helps you to
 identify that `my_function` refers global variable `aaa`.
 
 **IMPORTANT**: this is *just wrapping your cell* and so it’s still
-running on your main kernel. If you modify variables that has been
+running on your main kernel. If you modify variables that have been
 created outside of this cell (aka: if you have side effects) this will
 not protect you.
 
@@ -757,7 +757,7 @@ aaa
     'global variable'
 
 There is a dedicated syntax to enable passing variables to an isolated
-context and saving variables of objects back to the main context tith
+context and saving variables of objects back to the main context with
 the `(inputs)->(outputs)` syntax
 
 ``` python

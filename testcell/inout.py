@@ -37,7 +37,7 @@ def process_inout(x,splitter='->'):
         if c>0: raise ValueError(f'Missing closing parenthesis on "{v}"')
     t = [x[1:-1] for x in t]
     if len(t)==0: raise ValueError('No groups available')
-    if len(t)>2: raise ValueError(f'You shouold have only one "{splitter}" symbol')
+    if len(t)>2: raise ValueError(f'You should have only one "{splitter}" symbol')
     if len(t)==1: return split_and_strip(t[0],','),[]
     if len(t)==2: return split_and_strip(t[0],','),split_and_strip(t[1],',')
 
