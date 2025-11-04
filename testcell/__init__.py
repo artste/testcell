@@ -52,43 +52,38 @@ skip_message_box= MessageBox('This cell has been skipped',background_color=param
 testcell_message_box = MessageBox("testcell",background_color=params['testcell_background'],text_color=params['testcell_text'],emoji=params['testcell_emoji'])
 noglobals_message_box = MessageBox("testcell noglobals",background_color=params['noglobals_background'],text_color=params['noglobals_text'],emoji=params['noglobals_emoji'])
 
-# %% ../nbs/02_testcell.ipynb 13
-from pygments.formatters import HtmlFormatter
-from pygments import highlight
-from pygments.lexers import PythonLexer
-from IPython.display import HTML
-
-#class Code(data=None, url=None, filename=None, language=None):
-#    return HTML(highlight(data, PythonLexer(), HtmlFormatter(full=True)))
+# %% ../nbs/02_testcell.ipynb 15
+from IPython.display import Markdown
 
 class Code:
-    def __init__(self, data=None, url=None, filename=None, language=None):
+    def __init__(self, data=None, url=None, filename=None, language='python'):
         self.data = data
+        self.language = language
         # NOTE: skipping other arguments, we're keeling them only for backward compatibility
-    def _repr_html_(self): return highlight(self.data, PythonLexer(), HtmlFormatter(full=True))
+    def _repr_markdown_(self): return Markdown(f"```{self.language}\n{self.data}\n```")._repr_markdown_()
     def __repr__(self): return self.data
 
-# %% ../nbs/02_testcell.ipynb 18
+# %% ../nbs/02_testcell.ipynb 20
 testcell_valid_args = {'verbose','dryrun','noglobals','noreturn','skip','banner','debug'} # full commands set
 
-# %% ../nbs/02_testcell.ipynb 19
+# %% ../nbs/02_testcell.ipynb 21
 def parse_args(x):
     t = set([c for c in split_and_strip(x,' ') if c != ''])
     diff = t.difference(testcell_valid_args)
     if len(diff)>0: raise ValueError(f'Invalid arguments passed: "{",".join(diff)}"')
     return t
 
-# %% ../nbs/02_testcell.ipynb 22
+# %% ../nbs/02_testcell.ipynb 24
 from collections import namedtuple
 TestcellArgs = namedtuple('TestcellArgs','args inout')
 Inout = namedtuple('Inout','input output')
 
-# %% ../nbs/02_testcell.ipynb 23
+# %% ../nbs/02_testcell.ipynb 25
 def parse_testcell_args(x:str)->TestcellArgs:
     raw_args,raw_inout = separate_args_and_inout(x)
     return TestcellArgs(parse_args(raw_args),None if raw_inout is None else Inout(*process_inout(raw_inout)))
 
-# %% ../nbs/02_testcell.ipynb 26
+# %% ../nbs/02_testcell.ipynb 28
 @register_cell_magic
 @needs_local_scope
 def testcell(line, cell, local_ns):
@@ -155,7 +150,7 @@ def testcell(line, cell, local_ns):
         
     return None if noreturn else _globals.get('_',None) # this closes the loop of integration
 
-# %% ../nbs/02_testcell.ipynb 30
+# %% ../nbs/02_testcell.ipynb 32
 @register_cell_magic
 @needs_local_scope
 def testcelln(line, cell, local_ns):
