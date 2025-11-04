@@ -15,4 +15,12 @@ d = { 'settings': { 'branch': 'main',
                                'testcell.core.last_node': ('ast.html#last_node', 'testcell/core.py'),
                                'testcell.core.last_statement_has_semicolon': ('ast.html#last_statement_has_semicolon', 'testcell/core.py'),
                                'testcell.core.need_return': ('ast.html#need_return', 'testcell/core.py'),
-                               'testcell.core.node_source': ('ast.html#node_source', 'testcell/core.py')}}}
+                               'testcell.core.node_source': ('ast.html#node_source', 'testcell/core.py')},
+            'testcell.inout': { 'testcell.inout.count_char': ('arguments.html#count_char', 'testcell/inout.py'),
+                                'testcell.inout.count_delta': ('arguments.html#count_delta', 'testcell/inout.py'),
+                                'testcell.inout.optional_find': ('arguments.html#optional_find', 'testcell/inout.py'),
+                                'testcell.inout.process_inout': ('arguments.html#process_inout', 'testcell/inout.py'),
+                                'testcell.inout.separate_args_and_inout': ('arguments.html#separate_args_and_inout', 'testcell/inout.py'),
+                                'testcell.inout.split_and_strip': ('arguments.html#split_and_strip', 'testcell/inout.py'),
+                                'testcell.inout.validate_and_update_inputs': ( 'arguments.html#validate_and_update_inputs',
+                                                                               'testcell/inout.py')}}}
