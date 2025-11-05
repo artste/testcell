@@ -137,7 +137,7 @@ def testcell(line, cell, local_ns):
     wrapped_cell = '\n'.join(arr)
 
     if use_banner: display(noglobals_message_box if noglobals else testcell_message_box)
-    if verbose: display(Code('\n### BEGIN\n'+wrapped_cell+'\n### END',language='python'))
+    if verbose: display(Code('### BEGIN\n'+wrapped_cell+'\n### END',language='python'))
 
     if not dryrun: exec(wrapped_cell,_globals,_locals)
         
@@ -145,7 +145,7 @@ def testcell(line, cell, local_ns):
         arr2 = []
         for o in outputs: arr2 += [f'global {o}; {o}=locals()["{o}"]'] # this forwards objects to global scope
         globals_update_code = '\n'.join(arr2)
-        if debug: display(Code('\n### GLOBALS UPDATE CODE:\n'+globals_update_code+'\n###',language='python'))
+        if debug: display(Code('### GLOBALS UPDATE CODE:\n'+globals_update_code+'\n###',language='python'))
         exec(globals_update_code,local_ns,_globals)
         
     return None if noreturn else _globals.get('_',None) # this closes the loop of integration
