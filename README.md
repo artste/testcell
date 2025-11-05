@@ -31,8 +31,12 @@ pip install testcell
 
 ## How to use
 
-just import it with `import testcell` and then use the `%%testcell` cell
+Just import it with `import testcell` and then use the `%%testcell` cell
 magic.
+
+``` python
+import testcell
+```
 
 ``` python
 %%testcell
@@ -59,6 +63,21 @@ a = "'a' is not polluting global scope"
 a
 ```
 
+``` python
+
+### BEGIN
+def _test_cell_():
+    #| echo: false
+    a = "'a' is not polluting global scope"
+    return a # %%testcell
+try:
+    _ = _test_cell_()
+finally:
+    del _test_cell_
+_ # This will be added to global scope
+### END
+```
+
     "'a' is not polluting global scope"
 
 If you’re just interested in seeing what will be executed, but actually
@@ -70,6 +89,21 @@ a = "'a' is not polluting global scope"
 a
 ```
 
+``` python
+
+### BEGIN
+def _test_cell_():
+    #| echo: false
+    a = "'a' is not polluting global scope"
+    return a # %%testcell
+try:
+    _ = _test_cell_()
+finally:
+    del _test_cell_
+if _ is not None: display(_)
+### END
+```
+
 If you add a semicolon `;` at the end of your last statement no `return`
 statement is added and nothing is displayed like a normal jupyter cell.
 
@@ -79,6 +113,21 @@ a = "'a' is not polluting global scope"
 a;
 ```
 
+``` python
+
+### BEGIN
+def _test_cell_():
+    #| echo: false
+    a = "'a' is not polluting global scope"
+    a;
+try:
+    _ = _test_cell_()
+finally:
+    del _test_cell_
+_ # This will be added to global scope
+### END
+```
+
 `testcell` works seamlessly with existing `print` or `display`
 statements on last line:
 
@@ -86,6 +135,21 @@ statements on last line:
 %%testcell verbose
 a = "'a' is not polluting global scope"
 print(a)
+```
+
+``` python
+
+### BEGIN
+def _test_cell_():
+    #| echo: false
+    a = "'a' is not polluting global scope"
+    return print(a) # %%testcell
+try:
+    _ = _test_cell_()
+finally:
+    del _test_cell_
+_ # This will be added to global scope
+### END
 ```
 
     'a' is not polluting global scope
@@ -99,6 +163,22 @@ a = "'a' is not polluting global scope"
 (a,
  True)
 # this is a comment on last line
+```
+
+``` python
+
+### BEGIN
+def _test_cell_():
+    #| echo: false
+    a = "'a' is not polluting global scope"
+    return (a,
+     True) # %%testcell
+try:
+    _ = _test_cell_()
+finally:
+    del _test_cell_
+_ # This will be added to global scope
+### END
 ```
 
     ("'a' is not polluting global scope", True)
@@ -223,7 +303,35 @@ bbb=123
 def ccc(): return 567
 ```
 
+``` python
+
+### BEGIN
+def _test_cell_():
+    global bbb
+    global ccc
+    #| echo: false
+    # Input->Output and debug option
+    
+    print(aaa) # global variable
+    bbb=123
+    def ccc(): return 567
+try:
+    _ = _test_cell_()
+finally:
+    del _test_cell_
+if _ is not None: display(_)
+### END
+```
+
     global variable
+
+``` python
+
+### GLOBALS UPDATE CODE:
+global bbb; bbb=locals()["bbb"]
+global ccc; ccc=locals()["ccc"]
+###
+```
 
 ``` python
 # Variable bbb has been created in this context
@@ -256,9 +364,9 @@ del aaa
 - DOCUMENTATION: <https://artste.github.io/testcell>
 - PYPI: <https://pypi.org/project/testcell>
 - DETAILED DEMO:
-  \[https://github.com/artste/testcell/blob/main/demo/testcell_demo.ipynb\]
-- LAUNCHING BLOG:
-  \[https://artste.github.io/blog/posts/introducing-testcell\]
+  <https://github.com/artste/testcell/blob/main/demo/testcell_demo.ipynb>
+- LAUNCHING BLOG: [Introducing
+  `%%testcell`](https://artste.github.io/blog/posts/introducing-testcell)
 - COLAB DEMO:
   [testcell_demo.ipynb](https://colab.research.google.com/github/artste/testcell/blob/main/demo/testcell_demo.ipynb)
 - KAGGLE SAMPLE NOTEBOOK:
