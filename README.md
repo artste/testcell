@@ -20,6 +20,7 @@ code* like deleting a file or mutating the state of a global variable.
 
 [![](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/artste/testcell/blob/main/demo/testcell_demo.ipynb)
 [![](https://kaggle.com/static/images/open-in-kaggle.svg)](https://www.kaggle.com/artste/introducing-testcell)
+[![](https://modal-cdn.com/open-in-modal.svg)](https://modal.com/notebooks/new/https://github.com/artste/testcell/blob/main/demo/testcell_demo.ipynb)
 
 ## Install
 
