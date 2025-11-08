@@ -3,18 +3,19 @@ __version__ = "0.0.7"
 
 # %% auto 0
 __all__ = ['global_skip', 'global_use_banner', 'params', 'skip_message_box', 'testcell_message_box', 'noglobals_message_box',
-           'MessageBox', 'testcell', 'testcelln']
+           'testcell_valid_args', 'TestcellArgs', 'Inout', 'MessageBox', 'Code', 'parse_args', 'parse_testcell_args',
+           'testcell', 'testcelln']
 
 # %% ../nbs/02_testcell.ipynb 4
 import ast
 from IPython.core.magic import register_cell_magic, needs_local_scope
 from IPython import get_ipython # needed for quarto
-from IPython.display import Code
-
-# %% ../nbs/02_testcell.ipynb 5
-from .core import auto_return
 
 # %% ../nbs/02_testcell.ipynb 6
+from .core import auto_return
+from .inout import separate_args_and_inout, process_inout, split_and_strip, validate_and_update_inputs
+
+# %% ../nbs/02_testcell.ipynb 7
 global_skip = False # If true all %%testcell cells will be skipped
 global_use_banner = False # if true it shows a banner on the cell's output
 
@@ -25,36 +26,75 @@ params = {
     'skip_background':'#808080', 'skip_text':'white', 'skip_emoji':'ℹ️',   
 }
 
-# %% ../nbs/02_testcell.ipynb 8
-# Temporary class to deal with different display options (jupyter or console)
+# %% ../nbs/02_testcell.ipynb 10
+import html
+
 class MessageBox:
     def __init__(self,data,*,background_color,text_color,emoji=None):
         self.data = data
         self.background_color = background_color
         self.text_color = text_color
         self.emoji = emoji
-
+        
     def _repr_html_(self):
+        # Escape all user-controllable values
+        safe_bg = html.escape(str(self.background_color), quote=True)
+        safe_text = html.escape(str(self.text_color), quote=True)
+        safe_data = html.escape(str(self.data))
+        
         return f"""
-        <div style="background-color: {self.background_color}; padding: 3px; text-align: center; font-size: 12px; color: {self.text_color};">
-            {self.data}
-        </div>
-        """
+            <div style="background-color: {safe_bg}; padding: 3px; text-align: center; font-size: 12px; color: {safe_text};">
+              {safe_data}
+            </div>
+            """
 
     def __repr__(self): 
         text = self.data
         if self.emoji is not None: text = self.emoji + " " + text
         return text
 
-# %% ../nbs/02_testcell.ipynb 9
+# %% ../nbs/02_testcell.ipynb 12
 skip_message_box= MessageBox('This cell has been skipped',background_color=params['skip_background'],text_color=params['skip_text'],emoji=params['skip_emoji'])
 testcell_message_box = MessageBox("testcell",background_color=params['testcell_background'],text_color=params['testcell_text'],emoji=params['testcell_emoji'])
 noglobals_message_box = MessageBox("testcell noglobals",background_color=params['noglobals_background'],text_color=params['noglobals_text'],emoji=params['noglobals_emoji'])
 
-# %% ../nbs/02_testcell.ipynb 13
+# %% ../nbs/02_testcell.ipynb 17
+from IPython.display import Markdown
+
+class Code:
+    def __init__(self, data=None, url=None, filename=None, language='python'):
+        self.data = data
+        self.language = language
+        # NOTE: skipping other arguments, we're keeling them only for backward compatibility
+    def _repr_markdown_(self): return Markdown(f"```{self.language}\n{self.data}\n```")._repr_markdown_()
+    def __repr__(self): return self.data
+
+# %% ../nbs/02_testcell.ipynb 21
+testcell_valid_args = {'verbose','dryrun','noglobals','noreturn','skip','banner','debug'} # full commands set
+
+# %% ../nbs/02_testcell.ipynb 22
+def parse_args(x):
+    t = set([c for c in split_and_strip(x,' ') if c != ''])
+    diff = t.difference(testcell_valid_args)
+    if len(diff)>0: raise ValueError(f'Invalid arguments passed: "{",".join(diff)}"')
+    return t
+
+# %% ../nbs/02_testcell.ipynb 25
+from collections import namedtuple
+TestcellArgs = namedtuple('TestcellArgs','args inout')
+Inout = namedtuple('Inout','input output')
+
+# %% ../nbs/02_testcell.ipynb 26
+def parse_testcell_args(x:str)->TestcellArgs:
+    raw_args,raw_inout = separate_args_and_inout(x)
+    return TestcellArgs(parse_args(raw_args),None if raw_inout is None else Inout(*process_inout(raw_inout)))
+
+# %% ../nbs/02_testcell.ipynb 29
 @register_cell_magic
 @needs_local_scope
 def testcell(line, cell, local_ns):
+    args,inout = parse_testcell_args(line)
+    
     # Parse arguments
     verbose = 'verbose' in line # enable verbose 
     dryrun = 'dryrun' in line # this will avoid running the code and just print out the code like verbose
@@ -62,23 +102,37 @@ def testcell(line, cell, local_ns):
     noreturn = 'noreturn' in line # display but does not return anything, so no memory "footprint" after execution
     skip = ('skip' in line) or global_skip # skip cell execution
     use_banner = ('banner' in line) or global_use_banner # shows a contextual banner at top of the cell
+    debug = 'debug' in args # debug mode shows both code and all the update to the globals 
     
     # arguments rules
     if noglobals or dryrun: noreturn=True
     if dryrun: verbose=True
+    if debug: verbose=True
 
     # skip
     if skip: 
         display(skip_message_box)
         return None # exits
-
     
     # Do the job
     cell = auto_return(cell)
     lines = cell.splitlines()
+    
+    # Globals management
+    _globals = {} if noglobals else local_ns
+    _locals = {'_':None} if noreturn else None # we mask '_' with a local variable to prevent it affecting global scope
 
+    # Deal with inout
+    outputs = None
+    globals_definitions = []
+    if inout is not None:
+        inputs,outputs = inout.input,inout.output
+        _globals.update(validate_and_update_inputs(inputs,local_ns)) # inputs
+        for o in outputs: globals_definitions += ['\t'+f'global {o}'] # outputs
+    
     # Wrap inside a function and execute it
     arr = ['def _test_cell_():']
+    arr += globals_definitions
     arr += ['\t'+x for x in lines]
     arr += ['try:\n\t_ = _test_cell_()'] # execute it and assign result to '_'
     arr += ['finally:\n\tdel _test_cell_'] # delete it
@@ -88,17 +142,21 @@ def testcell(line, cell, local_ns):
         arr += ['_ # This will be added to global scope'] # having this as last line makes the same behavior as normal cell
     wrapped_cell = '\n'.join(arr)
 
-    if verbose: display(Code('\n### BEGIN\n'+wrapped_cell+'\n### END',language='python'))
+    if use_banner: display(noglobals_message_box if noglobals else testcell_message_box)
+    if verbose: display(Code('### BEGIN\n'+wrapped_cell+'\n### END',language='python'))
 
-    _globals = {} if noglobals else local_ns
-    _locals = {'_':None} if noreturn else None # we mask '_' with a local variable to prevent it affecting global scope
-    if not 'dryrun' in line: 
-        if use_banner: display(noglobals_message_box if noglobals else testcell_message_box)
-        exec(wrapped_cell,_globals,_locals)
-    
+    if not dryrun: exec(wrapped_cell,_globals,_locals)
+        
+    if (outputs is not None) and (len(outputs)>0) and (not dryrun):
+        arr2 = []
+        for o in outputs: arr2 += [f'global {o}; {o}=locals()["{o}"]'] # this forwards objects to global scope
+        globals_update_code = '\n'.join(arr2)
+        if debug: display(Code('### GLOBALS UPDATE CODE:\n'+globals_update_code+'\n###',language='python'))
+        exec(globals_update_code,local_ns,_globals)
+        
     return None if noreturn else _globals.get('_',None) # this closes the loop of integration
 
-# %% ../nbs/02_testcell.ipynb 17
+# %% ../nbs/02_testcell.ipynb 33
 @register_cell_magic
 @needs_local_scope
 def testcelln(line, cell, local_ns):

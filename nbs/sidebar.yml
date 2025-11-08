@@ -3,4 +3,5 @@ website:
     contents:
       - index.ipynb
       - 01_ast.ipynb
+      - 01a_arguments.ipynb
       - 02_testcell.ipynb
