@@ -1,0 +1,252 @@
+[
+  {
+    "objectID": "ast.html",
+    "href": "ast.html",
+    "title": "auto_return",
+    "section": "",
+    "text": "This section utilizes the standard Python ast (Abstract Syntax Tree) package to implement the auto_return function. The purpose of this function is to determine whether or not the last line of a given block of code should be returned and to appropriately add the return statement if necessary.\nThe following are the main steps involved:\n\nExtract the last statement in the cell code.\nDetermine if it can (or should) be returned.\nModify the code and add the return statement.\n\nPlease note that auto_return is the core component of testcell. By utilizing ast, we can handle arbitrary code in a robust and consistent manner.\nNOTE ON REFACTORING FROM auto_display TO auto_return\nPreviously, this code was based on the auto_display function, which wrapped the last line of the code with a display statement if necessary. While this approach appeared to be correct in most situations, it didn’t accurately match the behavior of Jupyter cells.\nWhat a jupyter cell does is to optionally return the value of the last statement; this value is in general an object that can implement __repr__ and __str__ and these dunders will be used by jupyter/IPython to decide how to display that value.\nThe current implementation instead, attempts to decide whether to add a return statement and defers the display of that value to the actual notebook infrastructure.\n\nsource\n\nlast_node\n\n last_node (code)\n\n\nfrom fastcore.test import *\n\n\nsource\n\n\nnode_source\n\n node_source (node, code)\n\n\nsample_code = '''\na = 1\nb = 2\nc = a+b;\n# test\n'''\ntest_eq(node_source(last_node(sample_code),sample_code), 'c = a+b')\n\n\nsample_code = '''\ndef my_function(x):\n    print(aaa)\n    return x\n    \nmy_function(123)\n'''\ntest_eq(node_source(last_node(sample_code),sample_code), 'my_function(123)')\n\n\nsample_code = ''\ntest_eq(node_source(last_node(sample_code),sample_code), None) # No code should display nothing\n\n\nsample_code = '''\nfor i in [1,2,3]:i\n'''\ntest_eq(node_source(last_node(sample_code),sample_code), None) # should not display anyhting\n\n\nsample_code = '''\nt=0 # sample assignment in the same cell\nwith open('test.txt') as f: \n    f.readlines()\n'''\ntest_eq(node_source(last_node(sample_code),sample_code), None) # with block should catch implicit output\n\n\nsource\n\n\nis_assignment\n\n is_assignment (node)\n\n\ntest_eq( is_assignment( last_node('a = 1\\nb = 2\\nc = a+b')), True )\ntest_eq( is_assignment( last_node('a = 1\\nb = 2\\nc = a+b\\nc')), False )\ntest_eq( is_assignment( last_node('c')), False )\ntest_eq( is_assignment( last_node('a=1')),True)\ntest_eq( is_assignment( last_node('a = function_execution()')),True)\ntest_eq( is_assignment( last_node('a;')),False)\ntest_eq( is_assignment( last_node('a')),False)\ntest_eq( is_assignment( last_node('a - function_execution()')),False)\n\n\nsource\n\n\nextract_call\n\n extract_call (node)\n\n\n# OK\ntest_eq(extract_call(last_node('fn()')), 'fn')\ntest_eq(extract_call(last_node('x.fn()')), 'fn')\ntest_eq(extract_call(last_node('x.y.fn()')), 'fn')\ntest_eq(extract_call(last_node('x.y.z.fn()')), 'fn')\n\n# KO\ntest_eq(extract_call(last_node('(fn)')), None)\ntest_eq(extract_call(last_node('fn')), None)\ntest_eq(extract_call(last_node('(fn(),fn)')), None)\ntest_eq(extract_call(last_node('(x.y.fn(),fn())')), None)\n\n\nsource\n\n\nis_import_statement\n\n is_import_statement (node)\n\n\ntest_eq( is_import_statement(last_node('123')) , False )\ntest_eq( is_import_statement(last_node('func(123)')) , False )\ntest_eq( is_import_statement(last_node('# test')) , False )\ntest_eq( is_import_statement(last_node('# import numpy')) , False )\ntest_eq( is_import_statement(last_node('import numpy')) , True )\ntest_eq( is_import_statement(last_node('from PIL import Image')) , True )\n\n\nsource\n\n\nis_ast_node\n\n is_ast_node (x, ref)\n\n\ntest_eq(is_ast_node(last_node('del a'),[ast.Delete]), True)\ntest_eq(is_ast_node(last_node('del a'),[ast.Assert]), False)\ntest_eq(is_ast_node(last_node('a==1'),[ast.Assert]), False)\n\nNOTE: I can’t came around with any common propety to mark statements like del a and assert b==1. The only way I’ve found is to hardcode a comparison against these language statements.\n\nsource\n\n\nneed_return\n\n need_return (node)\n\n\n# The following are a bunch of real use cases we want to test.\n# NOTE: not considering \";\"\n\n# Let's define a test utility function\ndef test_need_return(code): return need_return(last_node(code))\n\n# SHOULD BE TRUE\ntest_eq( test_need_return('a') , True )\n#test_eq( test_need_return('a;') , False ) # This is not supported with ast: we should do it differently\ntest_eq( test_need_return('func(a)') , True )\ntest_eq( test_need_return('{1:1,2:2}') , True )\ntest_eq( test_need_return('a in b') , True )\ntest_eq( test_need_return('a in b') , True )\ntest_eq( test_need_return('1 if True else None'), True)\n\n# SHOULD BE FALSE\ntest_eq( test_need_return('display(a)') , True )\ntest_eq( test_need_return('# xxx') , False )\ntest_eq( test_need_return('print(a)') , True )\ntest_eq( test_need_return('import xxx') , False )\ntest_eq( test_need_return('from xxx import yyy') , False )\ntest_eq( test_need_return('a=1') , False )\ntest_eq( test_need_return('for a in [1,2,3]: a') , False )\ntest_eq( test_need_return('del a') , False )\ntest_eq( test_need_return('a=1; del a') , False )\ntest_eq( test_need_return('assert a(b)==1') , False )\ntest_eq( test_need_return('try: a=0\\nexcept: a=1') , False )\ntest_eq( test_need_return('from numpy import array') , False )\ntest_eq( test_need_return('global a') , False )\ntest_eq( test_need_return('nonlocal a') , False )\n\n\nsource\n\n\nend_of_last_line_of_code\n\n end_of_last_line_of_code (code:str, node)\n\n\ndef do_test_end_of_last_line_of_code(sample_code):\n    return end_of_last_line_of_code(sample_code, last_node(sample_code))\n\ntest_eq( do_test_end_of_last_line_of_code('a=1') , '' ) # one line\ntest_eq( do_test_end_of_last_line_of_code('a=1\\na') , '' ) # two lines\ntest_eq( do_test_end_of_last_line_of_code('a=1\\na\\n') , '' ) # two lines\ntest_eq( do_test_end_of_last_line_of_code('a=1 # comment') , ' # comment' ) # one line and comment\ntest_eq( do_test_end_of_last_line_of_code('a=1; # comment') , '; # comment' ) # one line and comment\ntest_eq( do_test_end_of_last_line_of_code('a=1\\na; # comment') , '; # comment' ) # two lines and comment\n\nNOTE: we need to make the check on ; semicolon using string because ast ignores it.\n\nsource\n\n\nlast_statement_has_semicolon\n\n last_statement_has_semicolon (code)\n\n\ntest_eq( last_statement_has_semicolon('a=1\\nb=2') , False )\ntest_eq( last_statement_has_semicolon('a=1\\nb=2;') , True )\ntest_eq( last_statement_has_semicolon('a=1\\nb=2\\n# test') , False )\ntest_eq( last_statement_has_semicolon('a=1\\nb=2;\\n# test') , True )\n\n# with comment in the end\ntest_eq( last_statement_has_semicolon('a=1\\na # comment'), False)\ntest_eq( last_statement_has_semicolon('a=\"# fake comment\"\\na; # real comment'), True)\n\nFinally we need a way to grab the code till a given ast node in order to properly inject the return statement.\n\nsource\n\n\ncode_till_node\n\n code_till_node (code:str, node)\n\n\ndef do_test_code_till_node(sample_code):\n    return code_till_node(sample_code, last_node(sample_code))\n    \ntest_eq( do_test_code_till_node('a=1\\na') , 'a=1' ) # two lines\ntest_eq( do_test_code_till_node('a=1;a') , 'a=1;' ) # inlined\ntest_eq( do_test_code_till_node('a=1;a\\n#') , 'a=1;' ) # with post-comment\ntest_eq( do_test_code_till_node('a=1;print(\\na)') , 'a=1;' ) # multiline instruction\ntest_eq( do_test_code_till_node('print(1,\\n2);print(\\na)') , 'print(1,\\n2);' ) # all together\n\nauto_return is the main function of this module, and it determines whether a given line of code should be returned or not. It returns the modified code with that modification applied if necessary.\nNOTE: the comment # %%testcell is added to signal the row that has been modified.\n\nsource\n\n\nauto_return\n\n auto_return (code)\n\n\ntest_eq( auto_return('a=1\\na'), 'a=1\\nreturn a # %%testcell' )\ntest_eq( auto_return('a=1\\na;'), 'a=1\\na;' )\n\n\nprint(auto_return('a=1\\na'))\n\na=1\nreturn a # %%testcell\n\n\n\nprint(auto_return('a=3\\na;'))\n\na=3\na;",
+    "crumbs": [
+      "auto_return"
+    ]
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "testcell",
+    "section": "",
+    "text": "One good thing about working in Jupyter notebooks is that they make it easy to quickly test a bit of code by evaluating it in notebook cell. But one bad thing is that the definitions resulting from that evaluation hang around afterwards, when all you wanted was just to test that one bit of code.\n%%testcell is a simple simple solution to that problem. It lets you execute notebook cells in isolation. Test code, try snippets, and experiment freely: no variables, functions, classes, or imports are left behind. This helps to keep your namespace clean, so that leftover symbols do not confuse later work.\nWARNING: this doesn’t protect you from the side effects of your code like deleting a file or mutating the state of a global variable.",
+    "crumbs": [
+      "testcell"
+    ]
+  },
+  {
+    "objectID": "index.html#install",
+    "href": "index.html#install",
+    "title": "testcell",
+    "section": "Install",
+    "text": "Install\nLightweight and reliable: %%testcell depends only on IPython and works in all major notebook environments including Jupyter, Colab, Kaggle, Modal, Solveit, and the IPython console.\npip install testcell",
+    "crumbs": [
+      "testcell"
+    ]
+  },
+  {
+    "objectID": "index.html#quick-start",
+    "href": "index.html#quick-start",
+    "title": "testcell",
+    "section": "Quick Start",
+    "text": "Quick Start\nFirst import testcell:\nimport testcell\nThen use it:\n%%testcell\ntemp_var = \"This won't pollute namespace\"\ntemp_var\n\n\n\"This won't pollute namespace\"\n\n\n# temp_var doesn't exist — it was only defined inside the test cell\ntemp_var  # NameError: name 'temp_var' is not defined",
+    "crumbs": [
+      "testcell"
+    ]
+  },
+  {
+    "objectID": "index.html#how-it-works",
+    "href": "index.html#how-it-works",
+    "title": "testcell",
+    "section": "How it works",
+    "text": "How it works\nImport testcell and use the %%testcell magic at the top of any cell. Under the hood, your code is wrapped in a temporary function that executes and then deletes itself.\nUse verbose to see the generated wrapper code:\n%%testcell verbose\nresult = \"isolated execution\"\nresult\n\n\n### BEGIN\ndef _test_cell_():\n    #| echo: false\n    result = \"isolated execution\"\n    return result # %%testcell\ntry:\n    _ = _test_cell_()\nfinally:\n    del _test_cell_\n_ # This will be added to global scope\n### END\n\n\n'isolated execution'",
+    "crumbs": [
+      "testcell"
+    ]
+  },
+  {
+    "objectID": "index.html#suppressing-output",
+    "href": "index.html#suppressing-output",
+    "title": "testcell",
+    "section": "Suppressing output",
+    "text": "Suppressing output\nLike normal Jupyter cells, add a semicolon ; to the last statement to suppress display:\n%%testcell\ncalculation = 42 * 2\ncalculation;\nNo output is displayed, and calculation still doesn’t leak to globals.",
+    "crumbs": [
+      "testcell"
+    ]
+  },
+  {
+    "objectID": "index.html#skip-execution",
+    "href": "index.html#skip-execution",
+    "title": "testcell",
+    "section": "Skip execution",
+    "text": "Skip execution\nSkip cells without deleting code using the skip command.\nIMPORTANT: This is especially useful in notebook environments like Colab, Kaggle, and Modal where you can’t use Jupyter’s “Raw cell” type to disable execution.\n%%testcell skip\nraise ValueError('This will not execute')\n\n\n&lt;testcell.MessageBox object&gt;\n\n\nTo skip all %%testcell cells at once (useful for production runs), use: testcell.global_skip = True",
+    "crumbs": [
+      "testcell"
+    ]
+  },
+  {
+    "objectID": "index.html#visual-marking",
+    "href": "index.html#visual-marking",
+    "title": "testcell",
+    "section": "Visual marking",
+    "text": "Visual marking\nUse banner to display a colored indicator at the top of cell output, making test cells instantly recognizable:\n%%testcell banner\n\"clearly marked\"\n\n\n&lt;testcell.MessageBox object&gt;\n\n\n'clearly marked'\n\n\nThe banner adapts to your environment. In HTML-based notebooks like Jupyter, it displays as a full-width colored box. In console environments like IPython, it appears as text with an emoji.\nColors and emojis are fully customizable through testcell.params.\nIMPORTANT: To enable banners for all %%testcell cells, use: testcell.global_use_banner = True",
+    "crumbs": [
+      "testcell"
+    ]
+  },
+  {
+    "objectID": "index.html#run-in-complete-isolation",
+    "href": "index.html#run-in-complete-isolation",
+    "title": "testcell",
+    "section": "Run in complete isolation",
+    "text": "Run in complete isolation\n%%testcelln is a shortcut for %%testcell noglobals and executes cells with zero access to your notebook’s global scope. Only Python’s __builtins__ are available.\nThis is powerful for: - Detecting hidden dependencies: catch when your code accidentally relies on global variables - Testing portability: verify functions work standalone - Clean slate execution: run code exactly as it would in a fresh Python session\nmy_global = \"I'm in the global scope\"\n%%testcell\n'my_global' in globals()\n    True # my_global is available\n%%testcelln\n'my_global' in globals()\n    False # my_global is NOT available\n%%testcelln\nglobals().keys()\n    dict_keys(['__builtins__'])",
+    "crumbs": [
+      "testcell"
+    ]
+  },
+  {
+    "objectID": "index.html#explicit-dependencies",
+    "href": "index.html#explicit-dependencies",
+    "title": "testcell",
+    "section": "Explicit dependencies",
+    "text": "Explicit dependencies\nThe (inputs)-&gt;(outputs) syntax gives you precise control: you can pass any symbol (variables, functions, classes) into the isolated context and save only chosen ones back to globals.\nThis forces explicit dependency declaration, giving you full control over what enters and exits the cell. It prevents accidental reliance on symbols from the main context that would hurt you when exporting the code.\ndata = [1, 2, 3, 4, 5]\n%%testcelln (data)-&gt;(calculate_stats)\n# Only 'data' is available, only 'calculate_stats' is saved\n\ndef calculate_stats(values):\n    return {\n        'mean': sum(values) / len(values),\n        'min': min(values),\n        'max': max(values)\n    }\n\n# Test it works\nprint(calculate_stats(data))\n{'mean': 3.0, 'min': 1, 'max': 5}\ncalculate_stats now exists in globals. No test code or intermediate variables leaked.\ncalculate_stats([10, 20, 30])\n{'mean': 20.0, 'min': 10, 'max': 30}",
+    "crumbs": [
+      "testcell"
+    ]
+  },
+  {
+    "objectID": "index.html#advanced-parsing",
+    "href": "index.html#advanced-parsing",
+    "title": "testcell",
+    "section": "Advanced parsing",
+    "text": "Advanced parsing\nThanks to Python’s ast module, %%testcell correctly handles complex code patterns including comments on the last line and multi-line statements:\n%%testcell verbose\nresult = \"complex parsing\"\n(result,\n True)\n# comment on last line\n\n\n### BEGIN\ndef _test_cell_():\n    #| echo: false\n    result = \"complex parsing\"\n    return (result,\n     True) # %%testcell\ntry:\n    _ = _test_cell_()\nfinally:\n    del _test_cell_\n_ # This will be added to global scope\n### END\n\n\n('complex parsing', True)",
+    "crumbs": [
+      "testcell"
+    ]
+  },
+  {
+    "objectID": "index.html#links",
+    "href": "index.html#links",
+    "title": "testcell",
+    "section": "Links:",
+    "text": "Links:\n\nPROJECT PAGE: https://github.com/artste/testcell\nDOCUMENTATION: https://artste.github.io/testcell\nPYPI: https://pypi.org/project/testcell\nDETAILED DEMO: https://github.com/artste/testcell/blob/main/demo/testcell_demo.ipynb\nUSE CASE ZOO: https://github.com/artste/testcell/blob/main/demo/testcell_zoo.ipynb\nLAUNCHING BLOG: Introducing %%testcell\nCOLAB DEMO: testcell_demo.ipynb\nKAGGLE SAMPLE NOTEBOOK: https://www.kaggle.com/artste/introducing-testcell",
+    "crumbs": [
+      "testcell"
+    ]
+  },
+  {
+    "objectID": "index.html#todo",
+    "href": "index.html#todo",
+    "title": "testcell",
+    "section": "Todo:",
+    "text": "Todo:\n\nInstall as a plugin to enable it by default like other cell’s magic.",
+    "crumbs": [
+      "testcell"
+    ]
+  },
+  {
+    "objectID": "testcell.html",
+    "href": "testcell.html",
+    "title": "Implementation details",
+    "section": "",
+    "text": "NOTE: we use default_exp __init__ in order to enable this as soon as you import the module.\nWARNING: cells magic are striped out during documentation generation; this is the reason why there is the same cell magic as comment too.\nWARNING: the official IPython.display.Code syntax hilighter don’t seems to work. We’re creating a “drop-in” replacement that force full=True in HtmlFormatter. This seems to work properly and give us more control on code display. For details see: https://github.com/ipython/ipython/blob/72bb67ee8f57cb347ba358cce786c3fa87c470b9/IPython/lib/display.py#L667",
+    "crumbs": [
+      "Implementation details"
+    ]
+  },
+  {
+    "objectID": "testcell.html#support-classes",
+    "href": "testcell.html#support-classes",
+    "title": "Implementation details",
+    "section": "Support classes",
+    "text": "Support classes\n\n# Used only in tests\nfrom fastcore.test import *\n\n\n\nMessageBox\n\n MessageBox (data, background_color, text_color, emoji=None)\n\nInitialize self. See help(type(self)) for accurate signature.\n\n# test against html injection\nmb = MessageBox('&lt;script&gt;alert(1)&lt;/script&gt;', background_color='red', text_color='black')\ntest_eq('&lt;script&gt;' in mb._repr_html_(), True)  # Escaped = GOOD\ntest_eq('&lt;script&gt;' in mb._repr_html_(), False)  # No raw script = GOOD\ndel mb # we need to manually cleanup because we don't have %%testcell ;-)\n\n\n# Simulate rendering inside jupyter\ndisplay(skip_message_box)\ndisplay(testcell_message_box)\ndisplay(noglobals_message_box)\n\n\n            \n              This cell has been skipped\n            \n            \n\n\n\n            \n              testcell\n            \n            \n\n\n\n            \n              testcell noglobals\n            \n            \n\n\n\n# Simulate rendering into console\n[print(o.__repr__()) for o in [skip_message_box,testcell_message_box,noglobals_message_box]];\n\nℹ️ This cell has been skipped\n🟡 testcell\n🟢 testcell noglobals",
+    "crumbs": [
+      "Implementation details"
+    ]
+  },
+  {
+    "objectID": "testcell.html#valid-arguments",
+    "href": "testcell.html#valid-arguments",
+    "title": "Implementation details",
+    "section": "Valid arguments",
+    "text": "Valid arguments\n\n\nparse_args\n\n parse_args (x)\n\n\ntest_eq(parse_args(''),set())\ntest_eq(parse_args('verbose dryrun'),{'dryrun', 'verbose'})\ntest_eq(parse_args('verbose dryrun '),{'dryrun', 'verbose'})\ntest_fail(lambda:parse_args('verbose dryrun xxx yyy'),contains='Invalid arguments passed')",
+    "crumbs": [
+      "Implementation details"
+    ]
+  },
+  {
+    "objectID": "testcell.html#parse-testcell-arguments-string",
+    "href": "testcell.html#parse-testcell-arguments-string",
+    "title": "Implementation details",
+    "section": "Parse testcell arguments string",
+    "text": "Parse testcell arguments string\n\n\nparse_testcell_args\n\n parse_testcell_args (x:str)\n\n\ntest_eq(parse_testcell_args('dryrun  verbose '),TestcellArgs({'dryrun','verbose'},None))\ntest_eq(parse_testcell_args('dryrun verbose (a,b)'),TestcellArgs({'dryrun','verbose'},Inout(['a','b'],[])))\ntest_eq(parse_testcell_args('dryrun verbose (a,b) -&gt;(c)'),TestcellArgs({'dryrun','verbose'},Inout(['a','b'],['c'])))\n\ntest_fail(lambda:parse_testcell_args('dryrun verbose (a,b) -&gt;c'), contains='Invalid arguments passed')",
+    "crumbs": [
+      "Implementation details"
+    ]
+  },
+  {
+    "objectID": "testcell.html#main-function",
+    "href": "testcell.html#main-function",
+    "title": "Implementation details",
+    "section": "Main function",
+    "text": "Main function\n\n\ntestcell\n\n testcell (line, cell, local_ns)\n\nHere are some notes on the implementation of the main testcell function: + @needs_local_scope: adding this annotation will add the local_ns argument to the cell magic. We’ll use this dictionary instead of globals() to access notebook state. + arr is an intemediate structure used to easily modify the source code. + wrapped_cell will contain the final code that will be executed. + As far as I know, if the result (aka last line) of a cell is None, nothing is displayed, so the statement if _ is not None: display(_) tries to mimic this behavior when noreturn is added. + we use _locals={'_':None} to hide that variable and avoiding it get modified in _global scope.\nIMPORTANT: explicitly injectiong _globals in exec is very important because the default behaviour may be different across multiple versions of IPython/Jupyter.\nLet’s define %%testcelln: a shortcut to %%testcell noglobals\n\n\n\ntestcelln\n\n testcelln (line, cell, local_ns)\n\n\nfrom fastcore.test import *\n\n\n\nTest variable scope\n\naaa = \"I'm in global scope\"\n\n\n# %%testcell\naaa_in_globals = 'aaa' in globals().keys()\nprint(f'\"aaa\" variable is in global namespace: {aaa_in_globals}')\nassert aaa_in_globals\n\n\"aaa\" variable is in global namespace: True\n\n\n\n# %%testcelln\naaa_in_globals = 'aaa' in globals().keys()\nprint(f'\"aaa\" variable is in global namespace: {aaa_in_globals}')\nassert not aaa_in_globals\n\n\"aaa\" variable is in global namespace: False\n\n\n\ndel aaa\n\n\n\nTest noreturn\n\n_= '???' # let's initialize with a known value to ensure no midificaiton is happening\n\n\n# %%testcell noreturn\na = 1; a\n\n1\n\n\n\ntest_eq(_,'???') # Ensures last testno changes to last cell result `_`\n\n\n# %%testcell\na = 1; a\n\n1\n\n\n\ntest_eq(_,'???') # `testcelln` will behave like `testcell noresult`\n\n\n# %%testcell\na = 1; a\n\n1\n\n\n\ntest_eq(_,1) # If we let the return flow `_` will get modified\n\n\n\nStandard use cases\nCommon use case when you want to seamlessly display the output of a computation\n\n# %%testcell\na=1\na=a+3\na\n\n4\n\n\nLast cell results has been updated as expectedn\n\nassert _==4 # last cell result\n\nDespite this seems to be a normal cell variable a is not part of the global scope.\n\nassert 'a' not in locals()\n\nIf the last statement is a display or a print it works in any case. The trick is that both these instructions are actually functions that returns None, so for the way jupyter cells works there will be no out[] block.\n\n# %%testcell\na=1\na=a+4\ndisplay(a)\n\n5\n\n\n\nassert _==None # this is correct because both display and print returns none.\nassert display('display returns none') == None\nassert print('print returns none') == None\n\n'display returns none'\n\n\nprint returns none\n\n\nAll major use cases should be covered:\n\n# %%testcell\n# simple inline\na=1; a\n\n1\n\n\n\ntest_eq(_,1)\n\n\n# %%testcell\n# complex inline\na=1; {'value': a,\n      'note': 'complex multi line statement'}\n\n{'value': 1, 'note': 'complex multi line statement'}\n\n\n\ntest_eq(_,{'value': 1, 'note': 'complex multi line statement'})\n\n\nassert 'a' not in locals() # After all these tests `a` is still not inside globals\n\n\n\nOther available options\nThis magic supports the following options:\n\nnoglobals : this runs the cell in a completely isolated environment\nverbose : it prints out the code before executing it\ndryrun : just print the code without executing it\n\nHere are the examples\n\n# %%testcell noglobals\nthe_locals = locals().keys()\nprint(f'locals() = {the_locals}')\nassert list(the_locals)==[] # no locals!\n\nthe_globals = globals().keys()\nprint(f'globals() = {the_globals}')\nassert list(the_globals)==['__builtins__'] # only standard python\n\nlocals() = dict_keys([])\nglobals() = dict_keys(['__builtins__'])\n\n\n\n# %%testcell verbose\nb=3\nb\n\n### BEGIN\ndef _test_cell_():\n    # %%testcell verbose\n    b=3\n    return b # %%testcell\ntry:\n    _ = _test_cell_()\nfinally:\n    del _test_cell_\n_ # This will be added to global scope\n### END\n\n\n3\n\n\n\ntest_eq(_,3) # verbose display the code and execute it\n\n\n# %%testcell dryrun\nb=1\nb\n\nassert False # we should not be here because code is supposed to not be executed\n\n### BEGIN\ndef _test_cell_():\n    # %%testcell dryrun\n    b=1\n    b\n    \n    assert False # we should not be here because code is supposed to not be executed\ntry:\n    _ = _test_cell_()\nfinally:\n    del _test_cell_\nif _ is not None: display(_)\n### END\n\n\nFinally it properly works with any kind od displayable output too:\n\n# %%testcell skip\nassert False # This should not be triggered\n\n\n            \n              This cell has been skipped\n            \n            \n\n\n\n# %%testcell banner\nfrom IPython.display import Markdown\nMarkdown('''This shows a contextual banner, use: `testcell.global_use_banner=True` to always show the banner''')\n\n\n            \n              testcell\n            \n            \n\n\nThis shows a contextual banner, use: testcell.global_use_banner=True to always show the banner\n\n\n\n# %%testcelln banner\nfrom IPython.display import Markdown\nMarkdown('''This is a banner for noglobals''')\n\n\n            \n              testcell noglobals\n            \n            \n\n\nThis is a banner for noglobals\n\n\n\n# test imports\nfrom PIL import Image\nimport numpy\nimport matplotlib.pyplot as plt\n\n\n# %%testcell\nrng = numpy.random.default_rng(1234)\narr = rng.uniform(size=( 100,100,3)) * 255\nimg = Image.fromarray(arr.astype('uint8')).convert('RGB')\nassert 'img' in locals()\nimg\n\n\n\n\n\n\n\n\nNOTE: PIL.Imagehas a dedicated __repr__ dunder that jupyter will use to proeprly display it.\n\n# Out of the test cell `img` has been removed\nassert 'img' not in locals()\n\n\n# %%testcell\nplt.plot([1,3,9,2,4,3,6])\nplt.title('test with matplotlib');\n\n\n\n\n\n\n\n\nEven Matplotlib figures are properly displayed.\n\n\nnoreturn option\nThis is a pretty advanced use case: noreturn option ensures that no trace is left after cell execution; despite you see some output after the cell execution, this is only “displayed” but the last result placeholder _ is not updated. This is useful when you’re playing around with big abjects and you don’t want them to pollute neither that hidden notebook state.\nNOTE: noreturn option is automatically enabled using testcelln.\n\n# %%testcell verbose\n'using %%testcell updates the last executed expression result \"_\"'\n\n### BEGIN\ndef _test_cell_():\n    # %%testcell verbose\n    return 'using %%testcell updates the last executed expression result \"_\"' # %%testcell\ntry:\n    _ = _test_cell_()\nfinally:\n    del _test_cell_\n_ # This will be added to global scope\n### END\n\n\n'using %%testcell updates the last executed expression result \"_\"'\n\n\n\nassert globals()['_']=='using %%testcell updates the last executed expression result \"_\"'\n\nAs we can see, %%testcell magic properly update the _ state like in normal cell execution\n\n# %%testcelln\n'%%testcelln does not change \"_\"'\n\n### BEGIN\ndef _test_cell_():\n    # %%testcelln\n    return '%%testcelln does not change \"_\"' # %%testcell\ntry:\n    _ = _test_cell_()\nfinally:\n    del _test_cell_\nif _ is not None: display(_)\n### END\n\n\n'%%testcelln does not change \"_\"'\n\n\n\nassert globals()['_']=='using %%testcell updates the last executed expression result \"_\"'\n\n%%testcelln instead includes the noreturn option that avoids modifying last command execution _.",
+    "crumbs": [
+      "Implementation details"
+    ]
+  },
+  {
+    "objectID": "testcell.html#inout-syntax",
+    "href": "testcell.html#inout-syntax",
+    "title": "Implementation details",
+    "section": "inout syntax",
+    "text": "inout syntax\nThis is the most advanced option and is meant to enable selectively passing data in and out the context of testecell. It’s based on the cell as function idea, with the ability not only to input and output data but also symbols.\n\n# Define some stuff in the global space\ndef my_global_func(x): return x*2\nmy_global_variable = 123\n\n\nSelectively add objects from global state\nThis is useful when we’re developing something in isolation, but we need access to libraries, constants or other objects from the main scope.\n\nprint(globals().keys())\n\n# We can now access only to these two additional functions\nassert my_global_variable==123\nassert my_global_func(1)==2\n\ndict_keys(['my_global_func', 'my_global_variable', '__builtins__'])\n\n\n\n\nSelectively pushing changes to global state\nIn this case we’re\n\nassert 'kkk' not in globals().keys()\nassert 'fff' not in globals().keys()\n\n\nkkk = 'this is a global variable created inside testcelln cell'\ndef fff(): \n    # this is a global function created inside testcelln cell\n    return my_global_variable # we use a global variable that should not be accessible\n\nfff()\n\n### BEGIN\ndef _test_cell_():\n    global kkk\n    global fff\n    \n    kkk = 'this is a global variable created inside testcelln cell'\n    def fff(): \n        # this is a global function created inside testcelln cell\n        return my_global_variable # we use a global variable that should not be accessible\n    \n    return fff() # %%testcell\ntry:\n    _ = _test_cell_()\nfinally:\n    del _test_cell_\nif _ is not None: display(_)\n### END\n\n\n123\n\n\n### GLOBALS UPDATE CODE:\nglobal kkk; kkk=locals()[\"kkk\"]\nglobal fff; fff=locals()[\"fff\"]\n###\n\n\n\nassert kkk=='this is a global variable created inside testcelln cell'\nassert fff()==123\n\n\n# cleanup\ndel kkk\ndel fff\n\nThis last example is about only returning data:\n\nassert 'fff' not in globals().keys()\n\n\ndef a(): return 7\ndef fff(): return a()\n\n\ntest_eq(fff(),7)\n\n\n# cleanup\ndel fff",
+    "crumbs": [
+      "Implementation details"
+    ]
+  },
+  {
+    "objectID": "arguments.html",
+    "href": "arguments.html",
+    "title": "arguments",
+    "section": "",
+    "text": "This module is meant to add all the support functions for arguments and inout parsing.\nfrom fastcore.test import *",
+    "crumbs": [
+      "arguments"
+    ]
+  },
+  {
+    "objectID": "arguments.html#find-support-function",
+    "href": "arguments.html#find-support-function",
+    "title": "arguments",
+    "section": "Find support function",
+    "text": "Find support function\noptional_find let you search a string in forward or reverse order using one or more templates (aka: reference sub-strings).\nIt returns the first occurrence that is the leftmost in forward direction and rightmost in reverse direction. The occurrence returned is a tuple (position,template) where: + position: is the position inside the string. + template: is the copy of the template found. We need this to understand where that string finishes.\n\nsource\n\noptional_find\n\n optional_find (x, cc, reverse=False)\n\n\n# Single\ntest_eq( optional_find('abc','a')[0] , 0)\ntest_eq( optional_find('abc','c')[0] , 2)\ntest_eq( optional_find('abc','bc')[0] , 1)\ntest_eq( optional_find('abc','z'), None)\ntest_eq( optional_find('abcdefghiab','a',reverse=True)[0] , 9)\ntest_eq( optional_find('abc','bc',reverse=True)[0] , 1)\n\n# Multi\ntest_eq( optional_find('abcdefghiab',['aa','fg','ia'],reverse=False)[0] , 5)\ntest_eq( optional_find('abcdefghiab',['aa','fg','ia'],reverse=True)[0] , 8)\ntest_eq( optional_find('abcdefghiab',['aa','ia','fg'],reverse=True)[0] , 8)",
+    "crumbs": [
+      "arguments"
+    ]
+  },
+  {
+    "objectID": "arguments.html#character-level-utility",
+    "href": "arguments.html#character-level-utility",
+    "title": "arguments",
+    "section": "Character level utility",
+    "text": "Character level utility\n\nsource\n\ncount_char\n\n count_char (x, c)\n\n\ntest_eq( count_char('abacda','a') , 3 )\ntest_eq( count_char('abacda','b') , 1 )\ntest_eq( count_char('abacda','z') , 0 )\n\n\nsource\n\n\ncount_delta\n\n count_delta (x, a='(', b=')')\n\n\ntest_eq(count_delta('asd(asd)'),0)\ntest_eq(count_delta('asd(asd'),1)\ntest_eq(count_delta('asd(a(sd'),2)\ntest_eq(count_delta('asd(a(sd)))'),-1)",
+    "crumbs": [
+      "arguments"
+    ]
+  },
+  {
+    "objectID": "arguments.html#string-split-utility",
+    "href": "arguments.html#string-split-utility",
+    "title": "arguments",
+    "section": "String split utility",
+    "text": "String split utility\nThis is just a bit of syntactic sugar\n\nsource\n\nsplit_and_strip\n\n split_and_strip (x, splitter)\n\n\ntest_eq(split_and_strip('a,b,c',','),['a','b','c'])\ntest_eq(split_and_strip(' a, b,c ',','),['a','b','c'])\ntest_eq(split_and_strip('',','),[])",
+    "crumbs": [
+      "arguments"
+    ]
+  },
+  {
+    "objectID": "arguments.html#inout-util",
+    "href": "arguments.html#inout-util",
+    "title": "arguments",
+    "section": "Inout util",
+    "text": "Inout util\ninout is the name of the portion of the complete arguments string that refers to input and output parameters.\nFor example in this magick line: %%testcell noglobals (aaa,bbb) -&gt;(ccc) + raw_arguments: noglobals + inout: (aaa,bbb) -&gt;(ccc)\n\nsource\n\nprocess_inout\n\n process_inout (x, splitter='-&gt;')\n\n\ntest_eq(process_inout(None,splitter='-&gt;'),None)\n\ntest_eq(process_inout('(a,b,cc)-&gt;(d,ee)',splitter='-&gt;'),(['a','b','cc'],['d','ee']))\ntest_eq(process_inout(' (a,b,cc)  -&gt; (d,ee) ',splitter='-&gt;'),(['a','b','cc'],['d','ee']))\ntest_eq(process_inout(' (a,b,cc)  -&gt; () ',splitter='-&gt;'),(['a','b','cc'],[]))\ntest_eq(process_inout(' (a,b,cc)  ',splitter='-&gt;'),(['a','b','cc'],[]))\ntest_eq(process_inout('()-&gt;(a,b,cc)  ',splitter='-&gt;'),([],['a','b','cc']))\ntest_eq(process_inout('-&gt;(a,b,cc)  ',splitter='-&gt;'),([],['a','b','cc']))\n\ntest_fail(lambda: process_inout('(a,b,cc)(d,ee)'), contains='Too much parenthesis')\ntest_fail(lambda: process_inout('(a,b,cc) (d,ee)'), contains='Too much parenthesis')\ntest_fail(lambda: process_inout('(a,b,cc) (-&gt;d,ee)'), contains='Too much parenthesis')\ntest_fail(lambda: process_inout('(a,b,cc-&gt;)(d,ee)'), contains='Missing closing parenthesis')\ntest_fail(lambda: process_inout('(a,b,cc) - &gt; (d,ee)'), contains='Too much parenthesis')\ntest_fail(lambda: process_inout('(a,b,cc) ? (d,ee)'), contains='Too much parenthesis')\n\n\nsource\n\n\nseparate_args_and_inout\n\n separate_args_and_inout (x)\n\n\ntest_eq(separate_args_and_inout(None), None)  # None input → None output\n\ntest_eq(separate_args_and_inout(''), ['', None])  # Empty string → empty args, no in/out\ntest_eq(separate_args_and_inout('verbose'), ['verbose', None])  # Only args, no in/out\ntest_eq(separate_args_and_inout('dryrun verbose'), ['dryrun verbose', None])  # Multiple args, no in/out\ntest_eq(separate_args_and_inout('(a,b)-&gt;(c,d)'), ['', '(a,b)-&gt;(c,d)'])  # Pure in/out spec, no args\ntest_eq(separate_args_and_inout('(a,b)'), ['', '(a,b)'])  # Only input tuple, no args\ntest_eq(separate_args_and_inout('-&gt;(c,d)'), ['', '-&gt;(c,d)'])  # Only output tuple, no args\n\ntest_eq(separate_args_and_inout('dryrun verbose (a,b)'), ['dryrun verbose ', '(a,b)'])  # Args + input tuple\ntest_eq(separate_args_and_inout('dryrun verbose (a,b) -&gt; (c,d) '), ['dryrun verbose  ', '(a,b) -&gt; (c,d)'])  # Args + in/out\ntest_eq(separate_args_and_inout('dryrun verbose  () -&gt; (c,d) '), ['dryrun verbose   ', '() -&gt; (c,d)'])  # Args + empty input tuple\ntest_eq(separate_args_and_inout('dryrun verbose (a,b) -&gt; ()'), ['dryrun verbose ', '(a,b) -&gt; ()'])  # Args + empty output tuple\ntest_eq(separate_args_and_inout('dryrun verbose (a,b)  '), ['dryrun verbose   ', '(a,b)'])  # Args + input tuple, trailing spaces\n\ntest_eq(separate_args_and_inout('dryrun  (a,b)  verbose '), ['dryrun    verbose ', '(a,b)'])  # In/out tuple between args\ntest_eq(separate_args_and_inout('dryrun  (a,b) -&gt; (c,d) verbose'), ['dryrun   verbose', '(a,b) -&gt; (c,d)'])  # In/out in middle of args\ntest_eq(separate_args_and_inout('dryrun () -&gt; (c,d) verbose'), ['dryrun  verbose', '() -&gt; (c,d)'])  # Empty input tuple\ntest_eq(separate_args_and_inout('dryrun () -&gt; (c,d)verbose'), ['dryrun verbose', '() -&gt; (c,d)'])  # No space before verbose\ntest_eq(separate_args_and_inout('dryrun() -&gt; (c,d) verbose'), ['dryrun verbose', '() -&gt; (c,d)'])  # No space before ()\ntest_eq(separate_args_and_inout('dryrun  (a,b)-&gt;() verbose'), ['dryrun   verbose', '(a,b)-&gt;()'])  # Compact arrow, spacing preserved\ntest_eq(separate_args_and_inout('dryrun (a, b)  verbose'), ['dryrun   verbose', '(a, b)'])  # Tuple spacing preserved\n\ntest_eq(separate_args_and_inout('dryrun -&gt; (c,d)verbose'), ['dryrun verbose', '-&gt; (c,d)'])  # Output tuple glued to arg\ntest_eq(separate_args_and_inout('dryrun (c,d)-&gt;verbose'), ['dryrun verbose', '(c,d)-&gt;'])  # Input tuple glued to arg\n\ntest_eq(separate_args_and_inout('dryrun (incomplete'), ['dryrun (incomplete', None])  # Unclosed parenthesis → ignore as in/out",
+    "crumbs": [
+      "arguments"
+    ]
+  },
+  {
+    "objectID": "arguments.html#consume-inout",
+    "href": "arguments.html#consume-inout",
+    "title": "arguments",
+    "section": "Consume inout",
+    "text": "Consume inout\n\nsource\n\nvalidate_and_update_inputs\n\n validate_and_update_inputs (inputs:list, state:dict)\n\n\ntest_eq( validate_and_update_inputs(['a'],{'a':1, 'b':2}) , {'a':1} )\ntest_fail(lambda: validate_and_update_inputs(['a'],{'b':1}) , contains='not found: a' )\ntest_fail(lambda: validate_and_update_inputs(['a','c'],{'b':1}) , contains='not found: a, c' )",
+    "crumbs": [
+      "arguments"
+    ]
+  }
+]
