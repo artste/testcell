@@ -53,9 +53,17 @@ def separate_args_and_inout(x):
 
 # %% ../nbs/01a_arguments.ipynb 22
 def validate_and_update_inputs(inputs:list,state:dict,)->dict:
-    s = set(inputs)
-    ret = {}
-    for k in inputs:
-        if k not in state: raise ValueError(f'Unable to find object "{k}" in current state')
-        ret[k] = state[k]
-    return ret
+  s = set(inputs)
+  ret = {}
+  missing = []
+  for k in inputs:
+      if k not in state:
+          missing.append(k)
+      else:
+          ret[k] = state[k]
+
+  if missing:
+      # Generic error that doesn't reveal what DOES exist
+      raise ValueError(f'Required input variable(s) not found: {", ".join(missing)}')
+
+  return ret
