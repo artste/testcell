@@ -30,23 +30,28 @@ params = {
 import html
 
 class MessageBox:
-  def __init__(self,data,*,background_color,text_color,emoji=None):
-      self.data = data
-      self.background_color = background_color
-      self.text_color = text_color
-      self.emoji = emoji
+    def __init__(self,data,*,background_color,text_color,emoji=None):
+        self.data = data
+        self.background_color = background_color
+        self.text_color = text_color
+        self.emoji = emoji
+        
+    def __repr__(self): 
+        text = self.data
+        if self.emoji is not None: text = self.emoji + " " + text
+        return text
 
-  def _repr_html_(self):
-      # Escape all user-controllable values
-      safe_bg = html.escape(str(self.background_color), quote=True)
-      safe_text = html.escape(str(self.text_color), quote=True)
-      safe_data = html.escape(str(self.data))
-
-      return f"""
-      <div style="background-color: {safe_bg}; padding: 3px; text-align: center; font-size: 12px; color: {safe_text};">
-          {safe_data}
-      </div>
-      """
+    def _repr_html_(self):
+        # Escape all user-controllable values
+        safe_bg = html.escape(str(self.background_color), quote=True)
+        safe_text = html.escape(str(self.text_color), quote=True)
+        safe_data = html.escape(str(self.data))
+        
+        return f"""
+            <div style="background-color: {safe_bg}; padding: 3px; text-align: center; font-size: 12px; color: {safe_text};">
+              {safe_data}
+            </div>
+            """
 
 # %% ../nbs/02_testcell.ipynb 12
 skip_message_box= MessageBox('This cell has been skipped',background_color=params['skip_background'],text_color=params['skip_text'],emoji=params['skip_emoji'])
