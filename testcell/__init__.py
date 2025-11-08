@@ -26,33 +26,34 @@ params = {
     'skip_background':'#808080', 'skip_text':'white', 'skip_emoji':'ℹ️',   
 }
 
-# %% ../nbs/02_testcell.ipynb 9
-# Temporary class to deal with different display options (jupyter or console)
-class MessageBox:
-    def __init__(self,data,*,background_color,text_color,emoji=None):
-        self.data = data
-        self.background_color = background_color
-        self.text_color = text_color
-        self.emoji = emoji
-
-    def _repr_html_(self):
-        return f"""
-        <div style="background-color: {self.background_color}; padding: 3px; text-align: center; font-size: 12px; color: {self.text_color};">
-            {self.data}
-        </div>
-        """
-
-    def __repr__(self): 
-        text = self.data
-        if self.emoji is not None: text = self.emoji + " " + text
-        return text
-
 # %% ../nbs/02_testcell.ipynb 10
+import html
+
+class MessageBox:
+  def __init__(self,data,*,background_color,text_color,emoji=None):
+      self.data = data
+      self.background_color = background_color
+      self.text_color = text_color
+      self.emoji = emoji
+
+  def _repr_html_(self):
+      # Escape all user-controllable values
+      safe_bg = html.escape(str(self.background_color), quote=True)
+      safe_text = html.escape(str(self.text_color), quote=True)
+      safe_data = html.escape(str(self.data))
+
+      return f"""
+      <div style="background-color: {safe_bg}; padding: 3px; text-align: center; font-size: 12px; color: {safe_text};">
+          {safe_data}
+      </div>
+      """
+
+# %% ../nbs/02_testcell.ipynb 12
 skip_message_box= MessageBox('This cell has been skipped',background_color=params['skip_background'],text_color=params['skip_text'],emoji=params['skip_emoji'])
 testcell_message_box = MessageBox("testcell",background_color=params['testcell_background'],text_color=params['testcell_text'],emoji=params['testcell_emoji'])
 noglobals_message_box = MessageBox("testcell noglobals",background_color=params['noglobals_background'],text_color=params['noglobals_text'],emoji=params['noglobals_emoji'])
 
-# %% ../nbs/02_testcell.ipynb 15
+# %% ../nbs/02_testcell.ipynb 17
 from IPython.display import Markdown
 
 class Code:
@@ -63,27 +64,27 @@ class Code:
     def _repr_markdown_(self): return Markdown(f"```{self.language}\n{self.data}\n```")._repr_markdown_()
     def __repr__(self): return self.data
 
-# %% ../nbs/02_testcell.ipynb 20
+# %% ../nbs/02_testcell.ipynb 21
 testcell_valid_args = {'verbose','dryrun','noglobals','noreturn','skip','banner','debug'} # full commands set
 
-# %% ../nbs/02_testcell.ipynb 21
+# %% ../nbs/02_testcell.ipynb 22
 def parse_args(x):
     t = set([c for c in split_and_strip(x,' ') if c != ''])
     diff = t.difference(testcell_valid_args)
     if len(diff)>0: raise ValueError(f'Invalid arguments passed: "{",".join(diff)}"')
     return t
 
-# %% ../nbs/02_testcell.ipynb 24
+# %% ../nbs/02_testcell.ipynb 25
 from collections import namedtuple
 TestcellArgs = namedtuple('TestcellArgs','args inout')
 Inout = namedtuple('Inout','input output')
 
-# %% ../nbs/02_testcell.ipynb 25
+# %% ../nbs/02_testcell.ipynb 26
 def parse_testcell_args(x:str)->TestcellArgs:
     raw_args,raw_inout = separate_args_and_inout(x)
     return TestcellArgs(parse_args(raw_args),None if raw_inout is None else Inout(*process_inout(raw_inout)))
 
-# %% ../nbs/02_testcell.ipynb 28
+# %% ../nbs/02_testcell.ipynb 29
 @register_cell_magic
 @needs_local_scope
 def testcell(line, cell, local_ns):
@@ -150,7 +151,7 @@ def testcell(line, cell, local_ns):
         
     return None if noreturn else _globals.get('_',None) # this closes the loop of integration
 
-# %% ../nbs/02_testcell.ipynb 32
+# %% ../nbs/02_testcell.ipynb 33
 @register_cell_magic
 @needs_local_scope
 def testcelln(line, cell, local_ns):
